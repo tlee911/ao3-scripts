@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 
 FANDOM = 'Warrior Nun (TV)'
 START_PAGE = 1
-NUM_PAGES = 16
+NUM_PAGES = 2
 
 def print_dict(d, indent=2, depth=0):
   '''
@@ -93,18 +93,24 @@ def get_work_data(work_dom):
   data.update(get_work_stats(work_dom))
   return data
 
+def get_works(fandom, search_page):
+  url = build_search_url(fandom, page=search_page)
+  page = requests.get(url)
+  search_dom = BeautifulSoup(page.content, 'html.parser')
+  works_dom = search_dom.find_all('li', 'work blurb group')
+  return works_dom
 
 if __name__ == '__main__':
   for i in range(START_PAGE, START_PAGE + NUM_PAGES):
-    url = build_search_url(FANDOM, page=i)
-    page = requests.get(url)
-    search_dom = BeautifulSoup(page.content, 'html.parser')
-    works_dom = search_dom.find_all('li', 'work blurb group')
+    works = get_works(FANDOM, i)
 
-    if not works_dom:
+    if not works:
+      print('Reached end of search results on page {num}'.format(num=i))
       break
 
-    for work_dom in works_dom:
-      data = get_work_data(work_dom)
+    for work in works:
+      data = get_work_data(work)
       print_dict(data)
+      
+      break
 
