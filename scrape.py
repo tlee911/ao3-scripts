@@ -2,8 +2,8 @@ import requests, urllib
 from bs4 import BeautifulSoup
 
 FANDOM = 'Warrior Nun (TV)'
-START_PAGE = 2
-NUM_PAGES = 1
+START_PAGE = 1
+NUM_PAGES = 16
 
 def print_dict(d, indent=2, depth=0):
   '''
@@ -41,28 +41,55 @@ def get_work_byline(work_dom):
   }
 
 def get_work_stats(work_dom):
-  stats_strings = iter(work_dom.find('dl', 'stats').stripped_strings)
-  print(list(stats_strings))
-  raw_stats = dict(zip(stats_strings, stats_strings))
+  stats_dom = work_dom.find('dl', 'stats')
+  # This is needed due to multi-chapter works
+  dt = [ elem.get_text() for elem in stats_dom.find_all('dt') ]
+  dd = [ elem.get_text() for elem in stats_dom.find_all('dd') ]
+  raw_stats = dict(zip(dt, dd))
 
   stats = {}
   for key, value in raw_stats.items():
-    normalized_key= key[:-1] if key.endswith(':') else key
+    normalized_key = key[:-1] if key.endswith(':') else key
     stats[normalized_key] = value
   
+  # Will throw if unknown chapter count "?""
   #stats['Chapters Total'] = int(stats['Chapters'].split('/')[-1])
-  #stats['Chapters Published'] = int(stats['Chapters'].split('/')[0])
+  stats['Chapters'] = int(stats['Chapters'].split('/')[0])
   stats['Words'] = int(stats['Words'].replace(',', ''))
   return stats
 
+def get_work_symbols(work_dom):
+  elements = work_dom.find_all(title='Symbols key')
+  values = [ elem.get_text() for elem in elements ]
+  # Order matters!
+  keys = [
+    'Rating',
+    'Warnings',
+    'Category',
+    'Completion'
+  ]
+  symbols = dict(zip(keys, values))
+  symbols['Warnings'] = [ s.strip() for s in symbols['Warnings'].split(',') ]
+  return symbols
+
 def get_work_tags(work_dom):
-  return {}
+  tags_dom = work_dom.find('ul', 'tags commas')
+  relationships = [ tag.get_text() for tag in tags_dom.find_all('li', 'relationships') ]
+  characters = [ tag.get_text() for tag in tags_dom.find_all('li', 'characters') ]
+  freeforms = [ tag.get_text() for tag in tags_dom.find_all('li', 'freeforms') ]
+  return {
+    #'All Tags': list(tags_dom.stripped_strings),
+    'Relationships': relationships,
+    'Characters': characters,
+    'Freeforms': freeforms
+  }
 
 def get_work_data(work_dom):
   data = {}
   data['ID'] = get_work_id(work_dom)
   data.update(get_work_byline(work_dom))
   data.update(get_work_tags(work_dom))
+  data.update(get_work_symbols(work_dom))
   data.update(get_work_stats(work_dom))
   return data
 
@@ -80,4 +107,4 @@ if __name__ == '__main__':
     for work_dom in works_dom:
       data = get_work_data(work_dom)
       print_dict(data)
-      break
+
