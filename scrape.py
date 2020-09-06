@@ -125,6 +125,5 @@ if __name__ == '__main__':
     for work in works:
       data = get_work_data(work)
       print_dict(data)
-      
-      break
+
 
