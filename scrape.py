@@ -32,6 +32,13 @@ def get_work_id(work_dom):
   work_id = work_id_str.split('_')[-1]
   return work_id
 
+def get_work_fandoms(work_dom):
+  raw_fandoms = work_dom.find('h5', 'fandoms heading').stripped_strings
+  fandoms = filter(lambda x: x != ',', list(raw_fandoms)[1:])
+  return list(fandoms)
+
+def is_multi_fandom(work_dom):
+  return True if len(get_work_fandoms(work_dom)) > 1 else False
 
 def get_work_date(work_dom):
   # Note that this is the latest publish date for multi-chapter works
@@ -100,6 +107,8 @@ def get_work_tags(work_dom):
 def get_work_data(work_dom):
   data = {}
   data['ID'] = get_work_id(work_dom)
+  data['Fandoms'] = get_work_fandoms(work_dom)
+  data['Crossover'] = is_multi_fandom(work_dom)
   data.update(get_work_date(work_dom))
   data.update(get_work_byline(work_dom))
   data.update(get_work_tags(work_dom))
@@ -125,5 +134,3 @@ if __name__ == '__main__':
     for work in works:
       data = get_work_data(work)
       print_dict(data)
-
-
