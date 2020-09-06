@@ -1,4 +1,4 @@
-import requests, urllib
+import calendar, requests, urllib
 from bs4 import BeautifulSoup
 
 FANDOM = 'Warrior Nun (TV)'
@@ -31,6 +31,19 @@ def get_work_id(work_dom):
   work_id_str = work_dom.get_attribute_list('id')[0]
   work_id = work_id_str.split('_')[-1]
   return work_id
+
+
+def get_work_date(work_dom):
+  # Note that this is the latest publish date for multi-chapter works
+  # We don't have the original publish date without viewing the work
+  date = work_dom.find('p', 'datetime').get_text()
+  (day, month, year) = tuple(date.split(' '))
+  return {
+    'Last Publish Date': date,
+    'Year': int(year),
+    'Month': list(calendar.month_abbr).index(month.capitalize()),
+    'Day': int(day)
+  }
 
 def get_work_byline(work_dom):
   info = work_dom.find('div', 'header module')
@@ -87,6 +100,7 @@ def get_work_tags(work_dom):
 def get_work_data(work_dom):
   data = {}
   data['ID'] = get_work_id(work_dom)
+  data.update(get_work_date(work_dom))
   data.update(get_work_byline(work_dom))
   data.update(get_work_tags(work_dom))
   data.update(get_work_symbols(work_dom))
