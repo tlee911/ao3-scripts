@@ -9,3 +9,4 @@ Python 3 (I recommend using https://github.com/pyenv/pyenv or Docker)
 ## Getting Started
 * Get the code
 * `pip install -r requirements.txt`
+* `python scrape.py`
