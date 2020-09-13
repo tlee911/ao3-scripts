@@ -56,13 +56,15 @@ def get_work_updated(work_dom):
 def get_work_published(work_dom):
   # For multi-chapter works, we need to see the work details to get original
   # publish date
+  symbols = get_work_symbols(work_dom)
   stats = get_work_stats(work_dom)
-  if stats['Chapters'] > 1:
+  if stats['Chapters'] > 1 and \
+    symbols['Rating'] not in ['Explicit', 'Mature', 'Not Rated']:
+    # Don't bother for "high" ratings since script is not logged in and will be
+    # blocked by content warning
     work_url = 'https://archiveofourown.org/works/{id}'.format(id=get_work_id(work_dom))
-    print(work_url)
     # Don't use requests for this, because for some reason following the 302
     # redirects to the first chapter takes 20+ seconds
-    #page = requests.get(work_url)
     with urllib.request.urlopen(work_url) as req:
       content = req.read()
     detail_dom = BeautifulSoup(content, 'html.parser')
@@ -70,9 +72,9 @@ def get_work_published(work_dom):
     publish_date = publish_date_str.split('-')
     published = {
       'Date': publish_date_str,
-      'Year': int(publish_date_str[0]),
-      'Month': int(publish_date_str[1]),
-      'Day': int(publish_date_str[2]),
+      'Year': int(publish_date[0]),
+      'Month': int(publish_date[1]),
+      'Day': int(publish_date[2]),
     }
   else:
     published = get_work_updated(work_dom)['Updated']
@@ -140,9 +142,7 @@ def get_work_data(work_dom):
   data.update(get_work_symbols(work_dom))
   data.update(get_work_stats(work_dom))
   data.update(get_work_updated(work_dom))
-  if data['Rating'] not in ['Explicit', 'Mature', 'Not Rated']:
-    # Blocked by adult content warning since not logged in
-    data.update(get_work_published(work_dom))
+  data.update(get_work_published(work_dom))
   return data
 
 def get_works(fandom, search_page):
