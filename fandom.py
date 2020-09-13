@@ -1,4 +1,4 @@
-import calendar, requests, urllib
+import calendar, json, requests, urllib
 from bs4 import BeautifulSoup
 
 FANDOM = 'Warrior Nun (TV)'
@@ -40,17 +40,43 @@ def get_work_fandoms(work_dom):
 def is_multi_fandom(work_dom):
   return True if len(get_work_fandoms(work_dom)) > 1 else False
 
-def get_work_date(work_dom):
+def get_work_updated(work_dom):
   # Note that this is the latest publish date for multi-chapter works
   # We don't have the original publish date without viewing the work
   date = work_dom.find('p', 'datetime').get_text()
   (day, month, year) = tuple(date.split(' '))
-  return {
-    'Last Publish Date': date,
+  updated = {
+    'Date': date,
     'Year': int(year),
     'Month': list(calendar.month_abbr).index(month.capitalize()),
     'Day': int(day)
   }
+  return {'Updated': updated}
+
+def get_work_published(work_dom):
+  # For multi-chapter works, we need to see the work details to get original
+  # publish date
+  stats = get_work_stats(work_dom)
+  if stats['Chapters'] > 1:
+    work_url = 'https://archiveofourown.org/works/{id}'.format(id=get_work_id(work_dom))
+    print(work_url)
+    # Don't use requests for this, because for some reason following the 302
+    # redirects to the first chapter takes 20+ seconds
+    #page = requests.get(work_url)
+    with urllib.request.urlopen(work_url) as req:
+      content = req.read()
+    detail_dom = BeautifulSoup(content, 'html.parser')
+    publish_date_str = detail_dom.find('dd', 'published').getText()
+    publish_date = publish_date_str.split('-')
+    published = {
+      'Date': publish_date_str,
+      'Year': int(publish_date_str[0]),
+      'Month': int(publish_date_str[1]),
+      'Day': int(publish_date_str[2]),
+    }
+  else:
+    published = get_work_updated(work_dom)['Updated']
+  return {'Published': published}
 
 def get_work_byline(work_dom):
   info = work_dom.find('div', 'header module')
@@ -72,8 +98,8 @@ def get_work_stats(work_dom):
     normalized_key = key[:-1] if key.endswith(':') else key
     stats[normalized_key] = value
   
-  # Will throw if unknown chapter count "?""
-  #stats['Chapters Total'] = int(stats['Chapters'].split('/')[-1])
+  # Can't coerce to int since throws if unknown chapter count "?"
+  stats['Chapters Total'] = stats['Chapters'].split('/')[-1]
   stats['Chapters'] = int(stats['Chapters'].split('/')[0])
   stats['Words'] = int(stats['Words'].replace(',', ''))
   return stats
@@ -98,39 +124,52 @@ def get_work_tags(work_dom):
   characters = [ tag.get_text() for tag in tags_dom.find_all('li', 'characters') ]
   freeforms = [ tag.get_text() for tag in tags_dom.find_all('li', 'freeforms') ]
   return {
-    #'All Tags': list(tags_dom.stripped_strings),
     'Relationships': relationships,
     'Characters': characters,
     'Freeforms': freeforms
   }
 
 def get_work_data(work_dom):
-  data = {}
-  data['ID'] = get_work_id(work_dom)
-  data['Fandoms'] = get_work_fandoms(work_dom)
-  data['Crossover'] = is_multi_fandom(work_dom)
-  data.update(get_work_date(work_dom))
+  data = {
+    'ID': get_work_id(work_dom),
+    'Fandoms': get_work_fandoms(work_dom),
+    'Crossover': is_multi_fandom(work_dom)
+  }
   data.update(get_work_byline(work_dom))
   data.update(get_work_tags(work_dom))
   data.update(get_work_symbols(work_dom))
   data.update(get_work_stats(work_dom))
+  data.update(get_work_updated(work_dom))
+  if data['Rating'] not in ['Explicit', 'Mature', 'Not Rated']:
+    # Blocked by adult content warning since not logged in
+    data.update(get_work_published(work_dom))
   return data
 
 def get_works(fandom, search_page):
   url = build_search_url(fandom, page=search_page)
-  page = requests.get(url)
-  search_dom = BeautifulSoup(page.content, 'html.parser')
+  #page = requests.get(url)
+  with urllib.request.urlopen(url) as req:
+    content = req.read()
+  search_dom = BeautifulSoup(content, 'html.parser')
   works_dom = search_dom.find_all('li', 'work blurb group')
   return works_dom
 
 if __name__ == '__main__':
   for i in range(START_PAGE, START_PAGE + NUM_PAGES):
     works = get_works(FANDOM, i)
+    print('Retrieved {count} works from page {num}'.format(
+      count=len(works),
+      num=i)
+    )
 
     if not works:
       print('Reached end of search results on page {num}'.format(num=i))
       break
 
+    count = 1
     for work in works:
+      #print('Work #{count}'.format(count=count))
       data = get_work_data(work)
-      print_dict(data)
+      #print_dict(data)
+      print(json.dumps(data))
+      count += 1
