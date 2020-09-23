@@ -1,9 +1,32 @@
-import calendar, json, requests, urllib
+import calendar, csv, json, requests, urllib
 from bs4 import BeautifulSoup
 
 FANDOM = 'Warrior Nun (TV)'
 START_PAGE = 1
-NUM_PAGES = 2
+NUM_PAGES = 20
+OUTPUT_FILE = 'output.csv'
+FIELDS = [
+  'ID',
+  'Crossover',
+  'Title',
+  'Author',
+  'Ship_1',
+  'Ship_2',
+  'Ship_3',
+  'Char_1',
+  'Char_2',
+  'Char_3',
+  'Char_4',
+  'Rating',
+  'Category',
+  'Warnings',
+  'Completion',
+  'Language',
+  'Words',
+  'Update_Year',
+  'Update_Month',
+  'Update_Day'
+]
 
 def print_dict(d, indent=2, depth=0):
   '''
@@ -142,7 +165,7 @@ def get_work_data(work_dom):
   data.update(get_work_symbols(work_dom))
   data.update(get_work_stats(work_dom))
   data.update(get_work_updated(work_dom))
-  data.update(get_work_published(work_dom))
+  #data.update(get_work_published(work_dom))
   return data
 
 def get_works(fandom, search_page):
@@ -155,21 +178,41 @@ def get_works(fandom, search_page):
   return works_dom
 
 if __name__ == '__main__':
-  for i in range(START_PAGE, START_PAGE + NUM_PAGES):
-    works = get_works(FANDOM, i)
-    print('Retrieved {count} works from page {num}'.format(
-      count=len(works),
-      num=i)
-    )
+  with open(OUTPUT_FILE, 'w', newline='') as output:
+    writer = csv.DictWriter(output, fieldnames=FIELDS, extrasaction='ignore')
+    writer.writeheader()
 
-    if not works:
-      print('Reached end of search results on page {num}'.format(num=i))
-      break
+    for i in range(START_PAGE, START_PAGE + NUM_PAGES):
+      works = get_works(FANDOM, i)
+      print('Retrieved {count} works from page {num}'.format(
+        count=len(works),
+        num=i)
+      )
 
-    count = 1
-    for work in works:
-      #print('Work #{count}'.format(count=count))
-      data = get_work_data(work)
-      #print_dict(data)
-      print(json.dumps(data))
-      count += 1
+      if not works:
+        print('Reached end of search results on page {num}'.format(num=i))
+        break
+
+      count = 1
+      for work in works:
+        print('Work #{count}'.format(count=count))
+        data = get_work_data(work)
+        
+        # DEBUG STATEMENTS
+        #print_dict(data)
+        #print(json.dumps(data)) #write this to file then post-process to CSV
+
+        ships = data.get('Relationships', [])
+        for ship in ships:
+          data['Ship_{num}'.format(num=ships.index(ship)+1)] = ship
+
+        chars = data.get('Characters', [])
+        for char in chars:
+          data['Char_{num}'.format(num=chars.index(char)+1)] = char
+
+        for key in ['Year', 'Month', 'Day']:
+          data['Update_' + key] = data.get('Updated', {}).get(key)
+
+        writer.writerow(data)
+        count += 1
+      
