@@ -190,12 +190,12 @@ if __name__ == '__main__':
       )
 
       if not works:
-        print('Reached end of search results on page {num}'.format(num=i))
+        print('Reached end of search results on page {num}'.format(num=i-1))
         break
 
       count = 1
       for work in works:
-        print('Work #{count}'.format(count=count))
+        #print('Work #{count}'.format(count=count))
         data = get_work_data(work)
         
         # DEBUG STATEMENTS
