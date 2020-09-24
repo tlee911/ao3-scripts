@@ -3,8 +3,8 @@ from bs4 import BeautifulSoup
 
 FANDOM = 'Warrior Nun (TV)'
 START_PAGE = 1
-NUM_PAGES = 20
-OUTPUT_FILE = 'output.csv'
+NUM_PAGES = 25
+OUTPUT_FILE = 'output_test.csv'
 FIELDS = [
   'ID',
   'Crossover',
@@ -108,7 +108,7 @@ def get_work_byline(work_dom):
   byline = list(info.find('h4').stripped_strings)
   return {
     'Title': byline[0],
-    'Author': byline[-1]
+    'Author': byline[2]
   }
 
 def get_work_stats(work_dom):
