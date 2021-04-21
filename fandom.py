@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 
 FANDOM = 'Warrior Nun (TV)'
 START_PAGE = 1
-NUM_PAGES = 25
+NUM_PAGES = 50
 OUTPUT_FILE = 'output_test.csv'
 FIELDS = [
   'ID',
