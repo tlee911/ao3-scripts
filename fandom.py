@@ -46,8 +46,9 @@ def print_dict(d, indent=2, depth=0):
 
 def build_search_url(fandom, page=1):
   fandom_urlencode = urllib.parse.quote(fandom)
-  base_url = 'https://archiveofourown.org/tags/{fandom}/works?page={page}'
+  base_url = 'https://archiveofourown.org/tags/{fandom}/works?tos=yes&page={page}'
   url = base_url.format(fandom=fandom_urlencode, page=page)
+  print(url)
   return url
 
 def get_work_id(work_dom):
@@ -126,7 +127,13 @@ def get_work_stats(work_dom):
   # Can't coerce to int since throws if unknown chapter count "?"
   stats['Chapters Total'] = stats['Chapters'].split('/')[-1]
   stats['Chapters'] = int(stats['Chapters'].split('/')[0])
-  stats['Words'] = int(stats['Words'].replace(',', ''))
+
+  words = stats['Words'].replace(',', '')
+  try:
+    stats['Words'] = int(words)
+  except ValueError:
+    # Asian language word counts don't seem to be filled
+    stats['Words'] = 0
   return stats
 
 def get_work_symbols(work_dom):
@@ -174,7 +181,7 @@ def get_works(fandom, search_page):
   with urllib.request.urlopen(url) as req:
     content = req.read()
   search_dom = BeautifulSoup(content, 'html.parser')
-  works_dom = search_dom.find_all('li', 'work blurb group')
+  works_dom = search_dom.find_all('li', 'work')
   return works_dom
 
 if __name__ == '__main__':
