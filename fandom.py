@@ -1,10 +1,13 @@
-import calendar, csv, json, requests, urllib
+import calendar, csv, datetime, json, requests, time, urllib
 from bs4 import BeautifulSoup
 
 FANDOM = 'Warrior Nun (TV)'
 START_PAGE = 1
-NUM_PAGES = 50
-OUTPUT_FILE = 'output_test.csv'
+NUM_PAGES = 30
+OUTPUT_FILE = 'output/{fandom}_{date}.csv'.format(
+  fandom=FANDOM, 
+  date=datetime.date.isoformat(datetime.date.today())
+)
 FIELDS = [
   'ID',
   'Crossover',
@@ -23,9 +26,12 @@ FIELDS = [
   'Completion',
   'Language',
   'Words',
-  'Update_Year',
-  'Update_Month',
-  'Update_Day'
+  'Published_Year',
+  'Published_Month',
+  'Published_Day',
+  'Updated_Year',
+  'Updated_Month',
+  'Updated_Day'
 ]
 
 def print_dict(d, indent=2, depth=0):
@@ -65,7 +71,7 @@ def is_multi_fandom(work_dom):
   return True if len(get_work_fandoms(work_dom)) > 1 else False
 
 def get_work_updated(work_dom):
-  # Note that this is the latest publish date for multi-chapter works
+  # Note that this is the latest update date for multi-chapter works
   # We don't have the original publish date without viewing the work
   date = work_dom.find('p', 'datetime').get_text()
   (day, month, year) = tuple(date.split(' '))
@@ -80,17 +86,13 @@ def get_work_updated(work_dom):
 def get_work_published(work_dom):
   # For multi-chapter works, we need to see the work details to get original
   # publish date
-  symbols = get_work_symbols(work_dom)
   stats = get_work_stats(work_dom)
-  if stats['Chapters'] > 1 and \
-    symbols['Rating'] not in ['Explicit', 'Mature', 'Not Rated']:
-    # Don't bother for "high" ratings since script is not logged in and will be
-    # blocked by content warning
+  if stats['Chapters'] > 1:
+    # Don't get rate limited by AO3
+    time.sleep(0.5)
     work_url = 'https://archiveofourown.org/works/{id}'.format(id=get_work_id(work_dom))
-    # Don't use requests for this, because for some reason following the 302
-    # redirects to the first chapter takes 20+ seconds
-    with urllib.request.urlopen(work_url) as req:
-      content = req.read()
+    res = requests.get(work_url, cookies={'view_adult':'true'})
+    content = res.text
     detail_dom = BeautifulSoup(content, 'html.parser')
     publish_date_str = detail_dom.find('dd', 'published').getText()
     publish_date = publish_date_str.split('-')
@@ -132,7 +134,7 @@ def get_work_stats(work_dom):
   try:
     stats['Words'] = int(words)
   except ValueError:
-    # Asian language word counts don't seem to be filled
+    # https://otwarchive.atlassian.net/browse/AO3-3498
     stats['Words'] = 0
   return stats
 
@@ -172,14 +174,13 @@ def get_work_data(work_dom):
   data.update(get_work_symbols(work_dom))
   data.update(get_work_stats(work_dom))
   data.update(get_work_updated(work_dom))
-  #data.update(get_work_published(work_dom))
+  data.update(get_work_published(work_dom))
   return data
 
 def get_works(fandom, search_page):
   url = build_search_url(fandom, page=search_page)
-  #page = requests.get(url)
-  with urllib.request.urlopen(url) as req:
-    content = req.read()
+  search = requests.get(url)
+  content = search.text
   search_dom = BeautifulSoup(content, 'html.parser')
   works_dom = search_dom.find_all('li', 'work')
   return works_dom
@@ -217,8 +218,9 @@ if __name__ == '__main__':
         for char in chars:
           data['Char_{num}'.format(num=chars.index(char)+1)] = char
 
-        for key in ['Year', 'Month', 'Day']:
-          data['Update_' + key] = data.get('Updated', {}).get(key)
+        for date_type in ['Published', 'Updated']:
+          for key in ['Year', 'Month', 'Day']:
+            data[date_type + '_' + key] = data.get(date_type, {}).get(key)
 
         writer.writerow(data)
         count += 1
