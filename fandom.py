@@ -2,8 +2,9 @@ import calendar, csv, datetime, json, requests, time, urllib
 from bs4 import BeautifulSoup
 
 FANDOM = 'Warrior Nun (TV)'
-START_PAGE = 1
+START_PAGE = 10
 NUM_PAGES = 30
+PAUSE = 60 #seconds to wait in between batches to avoid rate-limits
 OUTPUT_FILE = 'output/{fandom}_{date}.csv'.format(
   fandom=FANDOM, 
   date=datetime.date.isoformat(datetime.date.today())
@@ -89,8 +90,8 @@ def get_work_published(work_dom):
   stats = get_work_stats(work_dom)
   if stats['Chapters'] > 1:
     # Don't get rate limited by AO3
-    time.sleep(0.5)
     work_url = 'https://archiveofourown.org/works/{id}'.format(id=get_work_id(work_dom))
+    print(work_url)
     res = requests.get(work_url, cookies={'view_adult':'true'})
     content = res.text
     detail_dom = BeautifulSoup(content, 'html.parser')
@@ -225,3 +226,6 @@ if __name__ == '__main__':
         writer.writerow(data)
         count += 1
       
+      print('Wait in between batches to avoid rate-limits')
+      time.sleep(PAUSE)
+      print('Continue')
