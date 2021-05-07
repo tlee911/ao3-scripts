@@ -1,9 +1,9 @@
 import calendar, csv, datetime, json, requests, time, urllib
 from bs4 import BeautifulSoup
 
-FANDOM = 'Warrior Nun (TV)'
-START_PAGE = 10
-NUM_PAGES = 30
+FANDOM = 'The Haunting of Bly Manor (TV)'
+START_PAGE = 60
+NUM_PAGES = -60
 PAUSE = 60 #seconds to wait in between batches to avoid rate-limits
 OUTPUT_FILE = 'output/{fandom}_{date}.csv'.format(
   fandom=FANDOM, 
@@ -30,9 +30,11 @@ FIELDS = [
   'Published_Year',
   'Published_Month',
   'Published_Day',
+  'Published_Date',
   'Updated_Year',
   'Updated_Month',
-  'Updated_Day'
+  'Updated_Day',
+  'Updated_Date'
 ]
 
 def print_dict(d, indent=2, depth=0):
@@ -53,7 +55,7 @@ def print_dict(d, indent=2, depth=0):
 
 def build_search_url(fandom, page=1):
   fandom_urlencode = urllib.parse.quote(fandom)
-  base_url = 'https://archiveofourown.org/tags/{fandom}/works?tos=yes&page={page}'
+  base_url = 'https://archiveofourown.org/tags/{fandom}/works?commit=Sort+and+Filter&tos=yes&page={page}'
   url = base_url.format(fandom=fandom_urlencode, page=page)
   print(url)
   return url
@@ -191,7 +193,9 @@ if __name__ == '__main__':
     writer = csv.DictWriter(output, fieldnames=FIELDS, extrasaction='ignore')
     writer.writeheader()
 
-    for i in range(START_PAGE, START_PAGE + NUM_PAGES):
+    step = -1 if NUM_PAGES < 0 else 1
+    search_pages = range(START_PAGE, START_PAGE + NUM_PAGES, step)
+    for i in search_pages:
       works = get_works(FANDOM, i)
       print('Retrieved {count} works from page {num}'.format(
         count=len(works),
@@ -220,12 +224,19 @@ if __name__ == '__main__':
           data['Char_{num}'.format(num=chars.index(char)+1)] = char
 
         for date_type in ['Published', 'Updated']:
-          for key in ['Year', 'Month', 'Day']:
+          for key in ['Year', 'Month', 'Day', 'Date']:
             data[date_type + '_' + key] = data.get(date_type, {}).get(key)
+
+        #if data['Published_Date'] == None:
+        #  data['Published_Date'] == data['Updated_Date']
 
         writer.writerow(data)
         count += 1
       
-      print('Wait in between batches to avoid rate-limits')
-      time.sleep(PAUSE)
-      print('Continue')
+      if i != search_pages[-1]:
+        # Don't bother waiting on the last batch
+        print('Wait {seconds}s between batches to avoid rate-limiting'.format(seconds=PAUSE))
+        for j in range(0,PAUSE):
+          print(j+1)
+          time.sleep(1)
+        print('Continuing...')
