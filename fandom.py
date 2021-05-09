@@ -1,10 +1,10 @@
 import calendar, csv, datetime, json, requests, time, urllib
 from bs4 import BeautifulSoup
 
-FANDOM = 'The Haunting of Bly Manor (TV)'
-START_PAGE = 60
-NUM_PAGES = -60
-PAUSE = 60 #seconds to wait in between batches to avoid rate-limits
+FANDOM = 'She-Ra and the Princesses of Power (2018)'
+START_PAGE = 607
+END_PAGE = 550
+PAUSE = 70 #seconds to wait in between batches to avoid rate-limits
 OUTPUT_FILE = 'output/{fandom}_{date}.csv'.format(
   fandom=FANDOM, 
   date=datetime.date.isoformat(datetime.date.today())
@@ -193,8 +193,8 @@ if __name__ == '__main__':
     writer = csv.DictWriter(output, fieldnames=FIELDS, extrasaction='ignore')
     writer.writeheader()
 
-    step = -1 if NUM_PAGES < 0 else 1
-    search_pages = range(START_PAGE, START_PAGE + NUM_PAGES, step)
+    step = 1 if END_PAGE > START_PAGE else -1
+    search_pages = range(START_PAGE, END_PAGE, step)
     for i in search_pages:
       works = get_works(FANDOM, i)
       print('Retrieved {count} works from page {num}'.format(
