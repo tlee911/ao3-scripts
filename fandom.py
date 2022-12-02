@@ -1,13 +1,13 @@
 import calendar, csv, datetime, json, requests, time, urllib
 from bs4 import BeautifulSoup
 
-FANDOM = 'She-Ra and the Princesses of Power (2018)'
-START_PAGE = 607
-END_PAGE = 550
-PAUSE = 70 #seconds to wait in between batches to avoid rate-limits
+FANDOM = 'Warrior Nun (TV)'
+START_PAGE = 1
+END_PAGE = 4
+PAUSE = 65 #seconds to wait in between batches to avoid rate-limits
 OUTPUT_FILE = 'output/{fandom}_{date}.csv'.format(
   fandom=FANDOM, 
-  date=datetime.date.isoformat(datetime.date.today())
+  date=datetime.datetime.isoformat(datetime.datetime.now())
 )
 FIELDS = [
   'ID',
@@ -57,7 +57,7 @@ def build_search_url(fandom, page=1):
   fandom_urlencode = urllib.parse.quote(fandom)
   base_url = 'https://archiveofourown.org/tags/{fandom}/works?commit=Sort+and+Filter&tos=yes&page={page}'
   url = base_url.format(fandom=fandom_urlencode, page=page)
-  print(url)
+  print('\n' + url)
   return url
 
 def get_work_id(work_dom):
@@ -86,14 +86,18 @@ def get_work_updated(work_dom):
   }
   return {'Updated': updated}
 
+def get_work_url(work_dom):
+  work_url = 'https://archiveofourown.org/works/{id}'.format(id=get_work_id(work_dom))
+  return work_url
+
 def get_work_published(work_dom):
   # For multi-chapter works, we need to see the work details to get original
   # publish date
   stats = get_work_stats(work_dom)
   if stats['Chapters'] > 1:
     # Don't get rate limited by AO3
-    work_url = 'https://archiveofourown.org/works/{id}'.format(id=get_work_id(work_dom))
-    print(work_url)
+    work_url = get_work_url(work_dom)
+    #print(work_url)
     res = requests.get(work_url, cookies={'view_adult':'true'})
     content = res.text
     detail_dom = BeautifulSoup(content, 'html.parser')
@@ -189,6 +193,7 @@ def get_works(fandom, search_page):
   return works_dom
 
 if __name__ == '__main__':
+  errors = []
   with open(OUTPUT_FILE, 'w', newline='') as output:
     writer = csv.DictWriter(output, fieldnames=FIELDS, extrasaction='ignore')
     writer.writeheader()
@@ -208,8 +213,13 @@ if __name__ == '__main__':
 
       count = 1
       for work in works:
-        #print('Work #{count}'.format(count=count))
-        data = get_work_data(work)
+        print('#', end='', flush=True)
+        try:
+          data = get_work_data(work)
+        except:
+          work_url = get_work_url(work)
+          print('Failed to extract data for {url}'.format(url=work_url))
+          errors.append(work_url)
         
         # DEBUG STATEMENTS
         #print_dict(data)
@@ -235,8 +245,12 @@ if __name__ == '__main__':
       
       if i != search_pages[-1]:
         # Don't bother waiting on the last batch
-        print('Wait {seconds}s between batches to avoid rate-limiting'.format(seconds=PAUSE))
+        print('\nWait {seconds}s between batches to avoid rate-limiting'.format(seconds=PAUSE))
         for j in range(0,PAUSE):
-          print(j+1)
+          if (j+1) % 10 == 0:
+            print(j+1, end='', flush=True)
+          else:
+            print('.', end='', flush=True)
           time.sleep(1)
-        print('Continuing...')
+
+  print('\n')
