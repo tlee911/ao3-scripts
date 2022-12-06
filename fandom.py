@@ -2,9 +2,9 @@ import calendar, csv, datetime, json, requests, time, urllib
 from bs4 import BeautifulSoup
 
 FANDOM = 'Warrior Nun (TV)'
-START_PAGE = 1
-END_PAGE = 4
-PAUSE = 65 #seconds to wait in between batches to avoid rate-limits
+START_PAGE = 62
+END_PAGE = 70
+PAUSE = 70 #seconds to wait in between batches to avoid rate-limits
 OUTPUT_FILE = 'output/{fandom}_{date}.csv'.format(
   fandom=FANDOM, 
   date=datetime.datetime.isoformat(datetime.datetime.now())
@@ -73,17 +73,25 @@ def get_work_fandoms(work_dom):
 def is_multi_fandom(work_dom):
   return True if len(get_work_fandoms(work_dom)) > 1 else False
 
+def get_date_str(date_dict):
+  date_str = '{yr}-{mth}-{day}'.format(
+    yr=date_dict['Year'],
+    mth=str(date_dict['Month']).zfill(2),
+    day=str(date_dict['Day']).zfill(2)
+  )
+  return date_str
+
 def get_work_updated(work_dom):
   # Note that this is the latest update date for multi-chapter works
   # We don't have the original publish date without viewing the work
   date = work_dom.find('p', 'datetime').get_text()
   (day, month, year) = tuple(date.split(' '))
   updated = {
-    'Date': date,
     'Year': int(year),
     'Month': list(calendar.month_abbr).index(month.capitalize()),
     'Day': int(day)
   }
+  updated['Date'] = get_date_str(updated)
   return {'Updated': updated}
 
 def get_work_url(work_dom):
@@ -104,11 +112,11 @@ def get_work_published(work_dom):
     publish_date_str = detail_dom.find('dd', 'published').getText()
     publish_date = publish_date_str.split('-')
     published = {
-      'Date': publish_date_str,
       'Year': int(publish_date[0]),
       'Month': int(publish_date[1]),
       'Day': int(publish_date[2]),
     }
+    published['Date'] = get_date_str(published)
   else:
     published = get_work_updated(work_dom)['Updated']
   return {'Published': published}
